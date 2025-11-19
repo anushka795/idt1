@@ -1,0 +1,300 @@
+You are a senior full-stack engineer. Build a COMPLETE, WORKING web application (frontend + backend) for a college platform with these features:
+
+APP NAME (example)
+- Name the app: "QuizConnect" (you can use this in the UI).
+
+HIGH-LEVEL DESCRIPTION
+- This is a web platform for college students and faculty.
+- Faculty upload notes (PDF / text).
+- An AI service generates quizzes from the notes.
+- Students attempt quizzes; those who solve them more accurately and in less time get higher ranks on a leaderboard and earn badges + XP.
+- Students can connect to peer members to discuss doubts.
+- There are two roles: STUDENT and TEACHER.
+- Implement everything end-to-end so the app runs out of the box.
+
+VERY IMPORTANT BEHAVIOR
+- Do NOT ask the user any questions.
+- Make all reasonable assumptions yourself.
+- Do NOT leave any “TODO” or “…” placeholders in the code.
+- Provide fully working code with all necessary files.
+- Assume we will copy your entire answer into a project folder and run it.
+- Include clear setup and run instructions.
+
+TECH STACK (CHOOSE CONSISTENTLY AND STICK TO IT)
+Use a modern, common JS stack:
+- Frontend: React + Vite OR Next.js (you choose, but keep it consistent). Use TypeScript.
+- Styling: Tailwind CSS.
+- Backend: Node.js with Express OR Next.js API routes (if you pick Next.js). Use TypeScript on the backend as well.
+- Database: MongoDB with Mongoose OR PostgreSQL with Prisma (choose one and implement fully).
+- Authentication: JWT-based auth or session-based auth with cookies.
+- AI QUIZ GENERATION: Abstract it as a function that calls an AI API (e.g., OpenAI). Write code as if an environment variable like OPENAI_API_KEY exists. Do NOT actually include a real key; just use a placeholder.
+
+ROLES & AUTHENTICATION
+1. LOGIN / SIGNUP
+   - On the initial landing page, show two big buttons: "Student Login / Sign Up" and "Teacher Login / Sign Up".
+   - Student and Teacher login forms should be separate (visually and in routing).
+   - Authentication fields:
+     - For Students:
+       - name (full name)
+       - class / branch / year
+       - college name (optional)
+       - email (Gmail preferred, but treat as normal email field)
+       - mobile number
+       - password
+     - For Teachers:
+       - name
+       - department / subject
+       - email
+       - mobile number
+       - years of experience (number)
+       - resume upload (PDF)
+       - password
+   - Store password securely (hashed).
+   - Backend should provide routes:
+     - POST /api/auth/student/register
+     - POST /api/auth/student/login
+     - POST /api/auth/teacher/register
+     - POST /api/auth/teacher/login
+   - Use role-based protection on routes (Student vs Teacher).
+
+2. TEACHER VERIFICATION FLOW
+   - When a teacher signs up, they should NOT be active immediately.
+   - A Teacher has a "status" field: "pending", "verified", "rejected".
+   - Resume upload: accept PDF and store file (either in local /uploads folder or in DB as a path).
+   - A simple MCQ TEST PAGE for teachers:
+     - Implement an internal test: e.g., 5–10 multiple choice questions about teaching / basic subject concepts (hardcode them).
+     - When a teacher logs in for the first time with status "pending", redirect them to "Verification Test" page.
+     - After completing the test with at least a passing score (e.g., 60%), set status = "verified".
+     - Until verified, teacher cannot create courses / upload notes.
+   - Create a simple admin-like check (no UI needed) via backend logic to automatically accept based on test score and having uploaded a resume.
+
+CORE FEATURES
+
+A. TEACHER INTERFACE (after verification)
+   - Teacher Dashboard (protected route/page):
+     - See profile and verification status.
+     - Create "Course" or "Subject" entries. Example fields:
+       - title
+       - description
+       - class / semester / branch
+     - For each course, teacher can:
+       - Upload notes (PDF or text).
+       - Trigger "Generate Quiz" from uploaded notes.
+   - Notes upload:
+     - Endpoint example: POST /api/notes/upload
+     - Store metadata in DB: courseId, teacherId, title, filePath or textContent, createdAt.
+   - AI Quiz Generation:
+     - When teacher clicks "Generate Quiz":
+       - Backend calls a function `generateQuizFromNotes(notesContent: string)` that:
+         - Uses an AI model (e.g., OpenAI) to generate a set of MCQs.
+         - Each question has: id, question text, 4 options, correct option index, difficulty (easy/medium/hard).
+       - Store generated quiz in DB, associated with the course and notes.
+     - Expose endpoint: POST /api/quizzes/generate (protected: teacher only).
+   - View quizzes list for a course and publish them so students can attempt.
+
+B. STUDENT INTERFACE
+   - Student Dashboard (protected route/page):
+     - Show:
+       - Profile section with name, class, XP, badges.
+       - List of available courses/subjects.
+       - Recommended quizzes.
+       - Current rank and XP progress bar.
+   - Quiz Attempt Flow:
+     - Student selects a course -> sees quizzes list.
+     - Each quiz card shows:
+       - number of questions
+       - estimated time
+       - difficulty
+       - status (Not started / In progress / Completed)
+     - When starting a quiz:
+       - Start a timer.
+       - Show one question at a time OR all at once (you decide; implement one clearly).
+       - On submit:
+         - Stop the timer.
+         - Calculate:
+           - score (correct answers)
+           - accuracy = correct / total
+           - timeTaken in seconds.
+         - Send results to backend: POST /api/quizzes/submit
+     - Backend saves attempt:
+       - studentId
+       - quizId
+       - score
+       - accuracy
+       - timeTaken
+       - calculated XP gained
+   - XP & BADGES:
+     - XP calculation logic (implement a simple formula, e.g.):
+       - Base XP = score * 10
+       - Bonus XP if timeTaken is below threshold.
+     - Badges:
+       - "Fast Solver" for finishing under certain time.
+       - "Top Scorer" for >90% accuracy.
+       - "Consistency Star" after completing X quizzes.
+     - Store badges and XP in the database and show on the student dashboard.
+
+C. LEADERBOARD
+   - Global leaderboard and course-wise leaderboard.
+   - Criteria:
+     - Sort primarily by XP.
+     - Tie-breaker: higher accuracy, then lower average timeTaken.
+   - Backend endpoints:
+     - GET /api/leaderboard/global
+     - GET /api/leaderboard/course/:courseId
+   - Frontend views:
+     - Show rank, student’s name, class, XP, main badge.
+     - Highlight the logged-in student's row.
+
+D. DOUBT DISCUSSION / PEER CONNECT
+   - Implement a "Doubt Discussion" section per course.
+   - Students can:
+     - Post a doubt (question text, optional image/file).
+     - Reply to others’ doubts (threaded comments).
+     - Tag the doubt as "Resolved" when done.
+   - Simple model:
+     - Doubt: id, courseId, studentId, title, description, createdAt, status.
+     - Comment: id, doubtId, authorId (student or teacher), text, createdAt.
+   - Endpoints:
+     - POST /api/doubts
+     - GET /api/doubts?courseId=...
+     - POST /api/doubts/:id/comments
+     - PATCH /api/doubts/:id/resolve
+   - UI:
+     - Doubts list with filters (open/resolved, mine/all).
+     - Detail page with conversation thread.
+
+UI/UX REQUIREMENTS
+- Responsive design: must look good on desktop and mobile.
+- A clean and modern look using Tailwind CSS.
+- Clear navigation:
+  - Top navbar with links based on role:
+    - Student: Dashboard, Courses, Leaderboard, Doubts, Profile, Logout.
+    - Teacher: Dashboard, My Courses, Upload Notes, Quizzes, Doubts, Profile, Logout.
+- Show role clearly in the header (e.g., "Logged in as Teacher").
+- Use modals or separate pages where appropriate (e.g., quiz attempt full-screen).
+- Include basic form validation and show error messages in the UI.
+
+DATABASE SCHEMA (EXAMPLE OUTLINE)
+Implement full models for (names are indicative; adjust to your chosen ORM):
+- User (base fields shared):
+  - _id
+  - name
+  - email (unique)
+  - passwordHash
+  - role: "student" | "teacher"
+  - mobile
+  - createdAt
+- StudentProfile:
+  - userId (ref User)
+  - classYear
+  - branch
+  - collegeName
+  - xp
+  - badges: [string]
+- TeacherProfile:
+  - userId (ref User)
+  - department
+  - experienceYears
+  - resumePath
+  - status: "pending" | "verified" | "rejected"
+- Course:
+  - _id
+  - title
+  - description
+  - classYear
+  - branch
+  - createdBy (teacherId)
+- Notes:
+  - _id
+  - courseId
+  - teacherId
+  - title
+  - filePath or textContent
+  - createdAt
+- Quiz:
+  - _id
+  - courseId
+  - notesId
+  - createdBy (teacherId)
+  - questions: array of:
+    - questionId
+    - questionText
+    - options: [string]
+    - correctIndex (0–3)
+    - difficulty
+  - createdAt
+- QuizAttempt:
+  - _id
+  - quizId
+  - studentId
+  - score
+  - accuracy
+  - timeTakenSeconds
+  - xpEarned
+  - completedAt
+- Doubt:
+  - _id
+  - courseId
+  - studentId
+  - title
+  - description
+  - status: "open" | "resolved"
+  - createdAt
+- DoubtComment:
+  - _id
+  - doubtId
+  - authorId (userId)
+  - text
+  - createdAt
+
+SECURITY & BACKEND DETAILS
+- Use JSON Web Tokens (JWT) or session cookies for authentication.
+- Protect all authenticated routes with middleware that checks:
+  - token validity
+  - user role (student/teacher).
+- Validate inputs on backend as well as frontend.
+- Prevent a teacher with status "pending" from using teacher-only features (course creation, notes upload, quiz generation).
+- Handle file upload securely for resumes and notes (e.g., using Multer if Express).
+
+AI INTEGRATION DETAILS
+- Implement a service function like:
+  - `async function generateQuizFromNotes(content: string): Promise<GeneratedQuiz>`.
+- Inside it, call an AI API (e.g., OpenAI’s chat completion) with a well-structured prompt asking it to return JSON of MCQs.
+- Parse the JSON and validate it before saving.
+- Keep the API key in an environment variable (e.g., process.env.OPENAI_API_KEY).
+- Include an example `.env.example` in your answer showing needed environment variables (without real keys).
+
+PROJECT STRUCTURE
+- Clearly show the folder structure, for example (if using Next.js):
+  - /app or /src
+  - /components
+  - /pages (if Pages Router) or route structure (if App Router)
+  - /lib
+  - /models
+  - /api or /app/api
+  - /styles
+- Explain briefly what each major folder is for.
+
+DELIVERABLES
+1. Complete code for:
+   - Backend (routes, models, controllers/services).
+   - Frontend pages/components.
+   - Auth middleware.
+   - AI quiz generation service.
+   - Leaderboard and XP/badges logic.
+   - Doubt discussion feature.
+2. Instructions to run the app locally:
+   - How to install dependencies.
+   - How to set up .env.
+   - How to run database migrations (if using Prisma).
+   - How to start backend and frontend (or single full-stack app).
+3. Provide some seed data or a simple seeding script for:
+   - A sample teacher (already verified).
+   - A sample student with some XP.
+   - A course, some notes, and one sample quiz.
+4. The final answer must be self-contained and directly usable to create a working project WITHOUT needing further clarification from the user.
+
+Remember:
+- Do not ask any follow-up questions.
+- Make reasonable assumptions.
+- Provide full, working code for a minimal but complete version of the described system.
